@@ -18,15 +18,32 @@ struct sprite {
     float x, y, width, height, rad, dx, dy, speed;
     HBITMAP hBitmap;//õýíäë ê ñïðàéòó øàðèêà 
     bool status;
+    bool XCollision;
+    bool YCollision;
 
     void show()
     {
         ShowBitmap(window.context, x, y, width, height, hBitmap);
     }
 
-    bool checkCollision(float x_, float y_)
+    void checkCollision(float x_, float y_)
     {
-        return (x_ > x && x_ < x + width && y_ > y && y_ < y + height);
+        if (x_ > x && x_ < x + width && y_ > y && y_ < y + height)
+        {
+            if ()  // ÒÓÒ ÍÓÆÍÀ ÏÐÎÂÅÐÊÀ, ÍÀ ÒÎ ×ÒÎ ÌÛ ÑÒÎËÊÍÓËÈÑÜ Ñ ÃÎÐÈÇÎÍÒÀËÜÍÎÉ ×ÀÑÒÜÞ ÁËÎÊÀ _____________________________!!!
+            {
+                XCollision = true;
+            }
+        
+        }
+        else
+        {
+                {
+               YCollision = true;
+                }
+        }
+         
+        
     }
 
 
@@ -77,6 +94,7 @@ void InitGame()
     ball.x = racket.x;//x êîîðäèíàòà øàðèêà - íà ñåðåäèå ðàêåòêè
     ball.y = racket.y - ball.rad;//øàðèê ëåæèò ñâåðõó ðàêåòêè
 
+
     game.score = 0;
     game.balls = 9;
 
@@ -90,6 +108,7 @@ void InitGame()
             blocks[i][j].height = window.height / 3 / blocks_y;
             blocks[i][j].x = i * blocks[i][j].width;
             blocks[i][j].y = j * blocks[i][j].height+ window.height / 3;
+            blocks[i][j].a = blocks[i][j].x; // ÄÎÁÀÂÈÒÜ ÊÎÎÐÄÈÍÀÒÛ ÂÅÐØÈÍ ÊÀÆÄÎÃÎ ÁËÎÊÀ
             blocks[i][j].status = true;
         }
     }
@@ -265,11 +284,22 @@ void CheckBlocks()
         {
             if (blocks[i][j].status == true) 
             {
-                if (blocks[i][j].checkCollision(ball.x, ball.y))
-                {
-                    ball.dy *= -1;
+                blocks[i][j].checkCollision(ball.x, ball.y);
+
+                
+                
+                    if (blocks[i][j].XCollision == true)
+                    {
+                        ball.dy *= -1;
+                        blocks[i][j].status = false;
+                    }
+                    else if (blocks[i][j].YCollision == true)
+                    
+                    {
+                    ball.dx *= -1;
                     blocks[i][j].status = false;
-                }
+                    }
+                               
             }
         }
     }
