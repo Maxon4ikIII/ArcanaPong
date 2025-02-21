@@ -5,25 +5,47 @@
 #include "windows.h"
 
 // секция данных игры  
-typedef struct {
-    float x, y, width, height, rad, dx, dy, speed;
-    HBITMAP hBitmap;//хэндл к спрайту шарика 
-} sprite;
 
-sprite racket;//ракетка игрока
-sprite enemy;//ракетка противника
-sprite ball;//шарик
-
-struct {
-    int score, balls;//количество набранных очков и оставшихся "жизней"
-    bool action = false;//состояние - ожидание (игрок должен нажать пробел) или игра
-} game;
+void ShowBitmap(HDC hDC, int x, int y, int x1, int y1, HBITMAP hBitmapBall, bool alpha = false);
 
 struct {
     HWND hWnd;//хэндл окна
     HDC device_context, context;// два контекста устройства (для буферизации)
     int width, height;//сюда сохраним размеры окна которое создаст программа
 } window;
+
+struct sprite {
+    float x, y, width, height, rad, dx, dy, speed;
+    HBITMAP hBitmap;//хэндл к спрайту шарика 
+    bool status;
+
+    void show()
+    {
+        ShowBitmap(window.context, x, y, width, height, hBitmap);
+    }
+
+    bool checkCollision(float x_, float y_)
+    {
+        return (x_ > x && x_ < x + width && y_ > y && y_ < y + height);
+    }
+
+
+};
+
+sprite racket;//ракетка игрока
+sprite enemy;//ракетка противника
+sprite ball;//шарик
+
+const int blocks_x = 20;
+const int blocks_y = 5;
+sprite blocks[blocks_x][blocks_y];
+
+struct {
+    int score, balls;//количество набранных очков и оставшихся "жизней"
+    bool action = false;//состояние - ожидание (игрок должен нажать пробел) или игра
+} game;
+
+
 
 HBITMAP hBack;// хэндл для фонового изображения
 
@@ -58,12 +80,25 @@ void InitGame()
     game.score = 0;
     game.balls = 9;
 
+    for (int i = 0;i < blocks_x;i++)
+    {
+        for (int j = 0;j < blocks_y;j++)
+        {
+            
+            blocks[i][j].hBitmap = enemy.hBitmap;
+            blocks[i][j].width = window.width / blocks_x;
+            blocks[i][j].height = window.height / 3 / blocks_y;
+            blocks[i][j].x = i * blocks[i][j].width;
+            blocks[i][j].y = j * blocks[i][j].height+ window.height / 3;
+            blocks[i][j].status = true;
+        }
+    }
    
 }
 
 void ProcessSound(const char* name)//проигрывание аудиофайла в формате .wav, файл должен лежать в той же папке где и программа
 {
-    PlaySound(TEXT(name), NULL, SND_FILENAME | SND_ASYNC);//переменная name содежрит имя файла. флаг ASYNC позволяет проигрывать звук паралельно с исполнением программы
+    //PlaySound(TEXT(name), NULL, SND_FILENAME | SND_ASYNC);//переменная name содежрит имя файла. флаг ASYNC позволяет проигрывать звук паралельно с исполнением программы
 }
 
 void ShowScore()
@@ -97,7 +132,7 @@ void ProcessInput()
     }
 }
 
-void ShowBitmap(HDC hDC, int x, int y, int x1, int y1, HBITMAP hBitmapBall, bool alpha = false)
+void ShowBitmap(HDC hDC, int x, int y, int x1, int y1, HBITMAP hBitmapBall, bool alpha)
 {
     HBITMAP hbm, hOldbm;
     HDC hMemDC;
@@ -128,6 +163,19 @@ void ShowBitmap(HDC hDC, int x, int y, int x1, int y1, HBITMAP hBitmapBall, bool
 void ShowRacketAndBall()
 {
     ShowBitmap(window.context, 0, 0, window.width, window.height, hBack);//задний фон
+
+    for (int i = 0; i < blocks_x; i++) {
+        for (int j = 0; j < blocks_y; j++) {
+
+            if (blocks[i][j].status)
+            {
+                blocks[i][j].show();
+            }
+        }
+    };
+
+
+
     ShowBitmap(window.context, racket.x - racket.width / 2., racket.y, racket.width, racket.height, racket.hBitmap);// ракетка игрока
 
     if (ball.dy < 0 && (enemy.x - racket.width / 4 > ball.x || ball.x > enemy.x + racket.width / 4))
@@ -209,12 +257,32 @@ void CheckFloor()
     }
 }
 
+void CheckBlocks()
+{
+    for (int i = 0;i < blocks_x;i++)
+    {
+        for (int j = 0;j < blocks_y;j++)
+        {
+            if (blocks[i][j].status == true) 
+            {
+                if (blocks[i][j].checkCollision(ball.x, ball.y))
+                {
+                    ball.dy *= -1;
+                    blocks[i][j].status = false;
+                }
+            }
+        }
+    }
+
+}
+
 void ProcessRoom()
 {
     //обрабатываем стены, потолок и пол. принцип - угол падения равен углу отражения, а значит, для отскока мы можем просто инвертировать часть вектора движения шарика
     CheckWalls();
     CheckRoof();
     CheckFloor();
+    CheckBlocks();
 }
 
 void ProcessBall()
@@ -257,7 +325,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     InitWindow();//здесь инициализируем все что нужно для рисования в окне
     InitGame();//здесь инициализируем переменные игры
 
-    mciSendString(TEXT("play ..\\Debug\\music.mp3 repeat"), NULL, 0, NULL);
+    //mciSendString(TEXT("play ..\\Debug\\music.mp3 repeat"), NULL, 0, NULL);
     ShowCursor(NULL);
     
     while (!GetAsyncKeyState(VK_ESCAPE))
