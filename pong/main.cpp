@@ -3,50 +3,83 @@
 //linker::input::additional dependensies Msimg32.lib; Winmm.lib
 
 #include "windows.h"
+#include <cmath>
 
 // секция данных игры  
 
 void ShowBitmap(HDC hDC, int x, int y, int x1, int y1, HBITMAP hBitmapBall, bool alpha = false);
 
-struct {
+struct 
+{
     HWND hWnd;//хэндл окна
     HDC device_context, context;// два контекста устройства (для буферизации)
     int width, height;//сюда сохраним размеры окна которое создаст программа
 } window;
 
-struct sprite {
+struct Block 
+{
+    float x, y, width, height;
+    HBITMAP hBitmap;
+    bool status;
+
+    float getLeftUpX() { return x; }
+    float getLeftUpY() { return y; }
+    float getRightUpX() { return x + width; }
+    float getRightUpY() { return y; }
+    float getLeftDownX() { return x; }
+    float getLeftDownY() { return y + height; }
+    float getRightDownX() { return x + width; }
+    float getRightDownY() { return y + height; }
+};
+
+struct sprite
+{
     float x, y, width, height, rad, dx, dy, speed;
     HBITMAP hBitmap;//хэндл к спрайту шарика 
     bool status;
     bool XCollision;
     bool YCollision;
 
+    //  Функция, для вычисления угла между двумя точками (в радианах)
+    float getAngle(float x1, float y1, float x2, float y2) {
+        return atan2(y2 - y1, x2 - x1);
+    }
+
     void show()
     {
         ShowBitmap(window.context, x, y, width, height, hBitmap);
     }
 
-    void checkCollision(float x_, float y_)
+    void checkCollision(Block& block) 
     {
-        if (x_ > x && x_ < x + width && y_ > y && y_ < y + height)
+        XCollision = false;
+        YCollision = false;
+
+        float blockLeftUpX = block.getLeftUpX();
+        float blockLeftUpY = block.getLeftUpY();
+        float blockRightUpX = block.getRightUpX();
+        float blockRightUpY = block.getRightUpY();
+        float blockLeftDownX = block.getLeftDownX();
+        float blockLeftDownY = block.getLeftDownY();
+        float blockRightDownX = block.getRightDownX();
+        float blockRightDownY = block.getRightDownY();
+
+        float angleLU = getAngle(x, y, blockLeftUpX, blockLeftUpY);
+        float angleRU = getAngle(x, y, blockRightUpX, blockRightUpY);
+        float angleLD = getAngle(x, y, blockLeftDownX, blockLeftDownY);
+        float angleRD = getAngle(x, y, blockRightDownX, blockRightDownY);
+        float angleMove = getAngle(x, y, x + dx, y + dy);
+
+        if (x + dx > block.x && x + dx < block.x + block.width &&
+            y + dy > block.y && y + dy < block.y + block.height)
         {
-            if ()  // ТУТ НУЖНА ПРОВЕРКА, НА ТО ЧТО МЫ СТОЛКНУЛИСЬ С ГОРИЗОНТАЛЬНОЙ ЧАСТЬЮ БЛОКА _____________________________!!!
-            {
-                XCollision = true;
-            }
-        
+            //  Определяем сторону столкновения (упрощенный подход)
+            if (x < block.x) { XCollision = true; }  // Left
+            if (x > block.x + block.width) { XCollision = true; }  // Right
+            if (y < block.y) { YCollision = true; } // Up
+            if (y > block.y + block.height) { YCollision = true; } // Down
         }
-        else
-        {
-                {
-               YCollision = true;
-                }
-        }
-         
-        
     }
-
-
 };
 
 sprite racket;//ракетка игрока
@@ -108,7 +141,6 @@ void InitGame()
             blocks[i][j].height = window.height / 3 / blocks_y;
             blocks[i][j].x = i * blocks[i][j].width;
             blocks[i][j].y = j * blocks[i][j].height+ window.height / 3;
-            blocks[i][j].a = blocks[i][j].x; // ДОБАВИТЬ КООРДИНАТЫ ВЕРШИН КАЖДОГО БЛОКА
             blocks[i][j].status = true;
         }
     }
@@ -278,28 +310,26 @@ void CheckFloor()
 
 void CheckBlocks()
 {
-    for (int i = 0;i < blocks_x;i++)
+    for (int i = 0; i < blocks_x; i++)
     {
-        for (int j = 0;j < blocks_y;j++)
+        for (int j = 0; j < blocks_y; j++)
         {
-            if (blocks[i][j].status == true) 
+            if (blocks[i][j].status == true)
             {
-                blocks[i][j].checkCollision(ball.x, ball.y);
+                ball.checkCollision(blocks[i][j]);
 
-                
-                
-                    if (blocks[i][j].XCollision == true)
-                    {
-                        ball.dy *= -1;
-                        blocks[i][j].status = false;
-                    }
-                    else if (blocks[i][j].YCollision == true)
-                    
-                    {
+                if (ball.XCollision == true)
+                {
+                    ball.dy *= -1;
+                    blocks[i][j].status = false;
+                }
+                else if (ball.YCollision == true)
+
+                {
                     ball.dx *= -1;
                     blocks[i][j].status = false;
-                    }
-                               
+                }
+
             }
         }
     }
