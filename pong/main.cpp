@@ -16,11 +16,22 @@ struct
     int width, height;//сюда сохраним размеры окна которое создаст программа
 } window;
 
-struct Block 
+struct Block_
 {
     float x, y, width, height;
     HBITMAP hBitmap;
     bool status;
+};
+
+Block_ Block;
+
+struct sprite
+{
+    float x, y, width, height, rad, dx, dy, speed;
+    HBITMAP hBitmap;//хэндл к спрайту шарика 
+    bool status;
+    bool XCollision;
+    bool YCollision;
 
     float getLeftUpX() { return x; }
     float getLeftUpY() { return y; }
@@ -30,15 +41,6 @@ struct Block
     float getLeftDownY() { return y + height; }
     float getRightDownX() { return x + width; }
     float getRightDownY() { return y + height; }
-};
-
-struct sprite
-{
-    float x, y, width, height, rad, dx, dy, speed;
-    HBITMAP hBitmap;//хэндл к спрайту шарика 
-    bool status;
-    bool XCollision;
-    bool YCollision;
 
     //  Функция, для вычисления угла между двумя точками (в радианах)
     float getAngle(float x1, float y1, float x2, float y2) {
@@ -50,35 +52,16 @@ struct sprite
         ShowBitmap(window.context, x, y, width, height, hBitmap);
     }
 
-    void checkCollision(Block& block) 
-    {
-        XCollision = false;
-        YCollision = false;
+    bool checkCollision(sprite& ball, Block_& block) {
+        float nextBallX = ball.x + ball.dx * ball.speed;
+        float nextBallY = ball.y + ball.dy * ball.speed;
 
-        float blockLeftUpX = block.getLeftUpX();
-        float blockLeftUpY = block.getLeftUpY();
-        float blockRightUpX = block.getRightUpX();
-        float blockRightUpY = block.getRightUpY();
-        float blockLeftDownX = block.getLeftDownX();
-        float blockLeftDownY = block.getLeftDownY();
-        float blockRightDownX = block.getRightDownX();
-        float blockRightDownY = block.getRightDownY();
-
-        float angleLU = getAngle(x, y, blockLeftUpX, blockLeftUpY);
-        float angleRU = getAngle(x, y, blockRightUpX, blockRightUpY);
-        float angleLD = getAngle(x, y, blockLeftDownX, blockLeftDownY);
-        float angleRD = getAngle(x, y, blockRightDownX, blockRightDownY);
-        float angleMove = getAngle(x, y, x + dx, y + dy);
-
-        if (x + dx > block.x && x + dx < block.x + block.width &&
-            y + dy > block.y && y + dy < block.y + block.height)
-        {
-            //  Определяем сторону столкновения (упрощенный подход)
-            if (x < block.x) { XCollision = true; }  // Left
-            if (x > block.x + block.width) { XCollision = true; }  // Right
-            if (y < block.y) { YCollision = true; } // Up
-            if (y > block.y + block.height) { YCollision = true; } // Down
+        if (nextBallX + ball.width > block.x && nextBallX < block.x + block.width &&
+            nextBallY + ball.height > block.y && nextBallY < block.y + block.height) {
+            return true;
         }
+
+        return false;
     }
 };
 
@@ -88,11 +71,11 @@ sprite ball;//шарик
 
 const int blocks_x = 20;
 const int blocks_y = 5;
-sprite blocks[blocks_x][blocks_y];
+Block_ blocks[blocks_x][blocks_y];
 
 struct {
     int score, balls;//количество набранных очков и оставшихся "жизней"
-    bool action = false;//состояние - ожидание (игрок должен нажать пробел) или игра
+    bool action = false;//состояние - ожидание (игрок должен нажать пробел)
 } game;
 
 
@@ -215,16 +198,18 @@ void ShowRacketAndBall()
 {
     ShowBitmap(window.context, 0, 0, window.width, window.height, hBack);//задний фон
 
-    for (int i = 0; i < blocks_x; i++) {
-        for (int j = 0; j < blocks_y; j++) {
-
+    // Отрисовка блоков
+    for (int i = 0; i < blocks_x; i++)
+    {
+        for (int j = 0; j < blocks_y; j++)
+        {
             if (blocks[i][j].status)
             {
-                blocks[i][j].show();
+                // Отрисовка блока
+                ShowBitmap(window.context, blocks[i][j].x, blocks[i][j].y, blocks[i][j].width, blocks[i][j].height, blocks[i][j].hBitmap);
             }
         }
     };
-
 
 
     ShowBitmap(window.context, racket.x - racket.width / 2., racket.y, racket.width, racket.height, racket.hBitmap);// ракетка игрока
@@ -308,32 +293,20 @@ void CheckFloor()
     }
 }
 
-void CheckBlocks()
-{
-    for (int i = 0; i < blocks_x; i++)
-    {
-        for (int j = 0; j < blocks_y; j++)
-        {
-            if (blocks[i][j].status == true)
-            {
-                ball.checkCollision(blocks[i][j]);
+bool checkCollision(const sprite& ball, const Block_& block);
 
-                if (ball.XCollision == true)
-                {
+void CheckBlocks() {
+    for (int i = 0; i < blocks_x; i++) {
+        for (int j = 0; j < blocks_y; j++) {
+            if (blocks[i][j].status == true) {
+                if (checkCollision(ball, blocks[i][j])) {
                     ball.dy *= -1;
                     blocks[i][j].status = false;
+                    game.score += 10;
                 }
-                else if (ball.YCollision == true)
-
-                {
-                    ball.dx *= -1;
-                    blocks[i][j].status = false;
-                }
-
             }
         }
     }
-
 }
 
 void ProcessRoom()
